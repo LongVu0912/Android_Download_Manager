@@ -1,104 +1,106 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content">
-    <RelativeLayout
-        android:id="@+id/main_rel"
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
-    <LinearLayout
-        android:id="@+id/line1"
-        android:layout_width="match_parent"
-        android:orientation="horizontal"
-        android:layout_height="85dp">
-        <ImageView
-            android:padding="5dp"
-            android:src="@drawable/download_icon"
-            android:layout_width="60dp"
-            android:layout_height="60dp"/>
-        <LinearLayout
-            android:layout_marginRight="80dp"
-            android:orientation="vertical"
+
+    <RelativeLayout
+            android:id="@+id/main_rel"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="80dp">
+            android:layout_height="wrap_content">
 
-            <TextView
-                    style="@style/TextAppearance.AppCompat.Subhead"
-                    android:padding="5dp"
-                    android:text="File Name "
-                    android:id="@+id/file_title"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:textStyle="normal|bold" />
-            <ProgressBar
-                android:progress="100"
-                android:id="@+id/file_progress"
-                style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+        <LinearLayout
+                android:id="@+id/line1"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"/>
-            <LinearLayout
                 android:orientation="horizontal"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
-                <TextView
-                    android:layout_weight="1"
-                    android:text="Downloaded : 15MB"
+                android:layout_height="120dp">
+
+            <ImageView
+                    android:padding="5dp"
+                    android:src="@drawable/download_icon"
+                    android:layout_width="65dp"
+                    android:layout_height="65dp" />
+
+            <LinearLayout
+                    android:orientation="vertical"
                     android:layout_width="match_parent"
-                    android:id="@+id/file_size"
-                    style="@style/TextAppearance.AppCompat.Caption"
-                    android:layout_height="wrap_content"/>
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="10dp">
 
                 <TextView
-                        android:layout_weight="1"
-                        android:text="Pending"
-                        android:gravity="end"
-                        android:id="@+id/file_status"
+                        style="@style/TextAppearance.AppCompat.Subhead"
+                        android:padding="5dp"
+                        android:text="File Name "
+                        android:id="@+id/file_title"
                         android:layout_width="match_parent"
-                        style="@style/TextAppearance.AppCompat.Caption"
-                        android:layout_height="wrap_content"
+                        android:layout_height="50dp"
                         android:textStyle="normal|bold" />
+
+                <ProgressBar
+                        android:id="@+id/file_progress"
+                        style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:progress="100" />
+
+                <LinearLayout
+                        android:orientation="horizontal"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
+
+                    <TextView
+                            android:layout_weight="1"
+                            android:text="Downloaded : 15MB"
+                            android:layout_width="match_parent"
+                            android:id="@+id/file_size"
+                            style="@style/TextAppearance.AppCompat.Caption"
+                            android:layout_height="wrap_content" />
+
+                    <TextView
+                            android:layout_weight="1"
+                            android:text="Pending"
+                            android:gravity="end"
+                            android:id="@+id/file_status"
+                            android:layout_width="match_parent"
+                            style="@style/TextAppearance.AppCompat.Caption"
+                            android:layout_height="wrap_content"
+                            android:textStyle="normal|bold" />
+                </LinearLayout>
+
+                <LinearLayout
+                        android:orientation="horizontal"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
+
+                    <Button
+                            android:id="@+id/pause_resume"
+                            android:text="PAUSE"
+                            style="@style/Widget.AppCompat.Button.Colored"
+                            android:layout_width="wrap_content"
+                            android:padding="0dp"
+                            android:layout_height="26dp"
+                            android:background="@drawable/rounded"
+                            app:backgroundTint="@color/red"
+                            android:layout_marginBottom="5dp"
+                            android:layout_marginTop="5dp"
+                            android:textStyle="bold" />
+
+                    <Button
+                            android:id="@+id/sharefile"
+                            android:text="SHARE"
+                            style="@style/Widget.AppCompat.Button.Colored"
+                            android:layout_width="wrap_content"
+                            android:padding="0dp"
+                            android:layout_height="26dp"
+                            android:background="@drawable/rounded_transparent"
+                            app:backgroundTint="@color/blue"
+                            android:textColor="@color/blue"
+                            android:layout_marginBottom="5dp"
+                            android:layout_marginTop="5dp"
+                            android:layout_marginLeft="5dp" />
+                </LinearLayout>
+
             </LinearLayout>
         </LinearLayout>
-        <LinearLayout
-            android:layout_marginTop="10dp"
-            android:layout_marginLeft="-70dp"
-            android:layout_width="wrap_content"
-            android:orientation="vertical"
-            android:layout_height="match_parent">
-
-            <Button
-                    android:id="@+id/pause_resume"
-                    android:text="PAUSE"
-                    style="@style/Widget.AppCompat.Button.Colored"
-                    android:layout_width="wrap_content"
-                    android:padding="0dp"
-                    android:layout_height="26dp"
-                    android:background="@drawable/rounded"
-                    app:backgroundTint="@color/red"
-                    android:layout_marginBottom="10dp"
-                    android:layout_marginRight="5dp" />
-
-            <Button
-                    android:id="@+id/sharefile"
-                    android:text="SHARE"
-                    style="@style/Widget.AppCompat.Button.Colored"
-                    android:layout_width="wrap_content"
-                    android:padding="0dp"
-                    android:layout_height="26dp"
-                    android:background="@drawable/rounded_transparent"
-                    app:backgroundTint="@color/blue"
-                    android:textColor="@color/blue"
-                    android:layout_marginRight="5dp" />
-        </LinearLayout>
-    </LinearLayout>
-        <View
-            android:layout_below="@id/line1"
-            android:background="#606060"
-            android:layout_marginTop="10dp"
-            android:layout_width="match_parent"
-            android:layout_height="1dp"/>
     </RelativeLayout>
 </androidx.cardview.widget.CardView>

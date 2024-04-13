@@ -215,6 +215,4 @@ public class DownloadAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
             i++;
         }
     }
-
-
 }

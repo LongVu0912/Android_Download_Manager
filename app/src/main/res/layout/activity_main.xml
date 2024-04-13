@@ -27,7 +27,8 @@
             android:background="@drawable/rounded"
             app:backgroundTint="@color/red"
             android:textColor="@color/white"
-            android:layout_margin="5dp" />
+            android:layout_margin="5dp"
+            android:layout_marginBottom="5dp" />
 
     <androidx.recyclerview.widget.RecyclerView
             android:layout_width="match_parent"
