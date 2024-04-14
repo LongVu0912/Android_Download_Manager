@@ -23,13 +23,11 @@ public class DownloadAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
     Context context;
     List<DownloadModel> downloadModels;
     ItemClickListener clickListener;
-    SQLiteDatabase db;
 
     public DownloadAdapter(Context context, List<DownloadModel> downloadModels, ItemClickListener itemClickListener) {
         this.context = context;
         this.clickListener = itemClickListener;
         this.downloadModels = downloadModels;
-        this.db = new DatabaseHelper(context).getWritableDatabase();
     }
 
     public static class DownloadViewHolder extends RecyclerView.ViewHolder {
@@ -159,6 +157,7 @@ public class DownloadAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
     }
 
     public boolean ChangeItemWithStatus(final String message, long downloadid) {
+        SQLiteDatabase db = new DatabaseHelper(context).getWritableDatabase();
         boolean comp = false;
         int i = 0;
         for (final DownloadModel downloadModel : downloadModels) {
@@ -179,6 +178,7 @@ public class DownloadAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
     }
 
     public void setChangeItemFilePath(final String path, long id) {
+        SQLiteDatabase db = new DatabaseHelper(context).getWritableDatabase();
         int i = 0;
         for (DownloadModel downloadModel : downloadModels) {
             if (id == downloadModel.getDownloadId()) {
