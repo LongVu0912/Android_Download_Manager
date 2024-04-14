@@ -3,11 +3,12 @@ package com.example.download_manager;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.annotation.SuppressLint;
+import android.content.ContentValues;
+import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
@@ -27,7 +28,6 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
-import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
 import android.view.View;
@@ -35,17 +35,13 @@ import android.webkit.MimeTypeMap;
 import android.webkit.URLUtil;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ImageView;
 import android.widget.Toast;
 
 import java.io.File;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 
 import io.realm.Realm;
-import io.realm.RealmResults;
-import io.realm.annotations.PrimaryKey;
 
 public class MainActivity extends AppCompatActivity implements ItemClickListener {
 
@@ -53,6 +49,8 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
     DownloadAdapter downloadAdapter;
     List<DownloadModel> downloadModels = new ArrayList<>();
     Realm realm;
+    private SQLiteDatabase database;
+    private DatabaseHelper dbHelper;
     Context context;
     RecyclerView data_list;
 
@@ -60,7 +58,8 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        realm = Realm.getDefaultInstance();
+        dbHelper = new DatabaseHelper(this);
+        database = dbHelper.getWritableDatabase();
         registerReceiver(onComplete, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
         Button add_download_list = findViewById(R.id.add_download_list);
         data_list = findViewById(R.id.data_list);
@@ -74,7 +73,7 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
 
         List<DownloadModel> downloadModelsLocal = getAllDownloads();
         if (downloadModelsLocal != null) {
-            if (downloadModelsLocal.size() > 0) {
+            if (!downloadModelsLocal.isEmpty()) {
                 downloadModels.addAll(downloadModelsLocal);
                 for (int i = 0; i < downloadModels.size(); i++) {
                     if (downloadModels.get(i).getStatus().equalsIgnoreCase("Pending") || downloadModels.get(i).getStatus().equalsIgnoreCase("Running") || downloadModels.get(i).getStatus().equalsIgnoreCase("Downloading")) {
@@ -106,16 +105,10 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
                 }
             }
         }
-
     }
 
     public void ClearAllDownload(View view) {
-        Realm realm = Realm.getDefaultInstance();
-        realm.beginTransaction();
-        // delete all realm objects
-        realm.deleteAll();
-        //commit realm changes
-        realm.commitTransaction();
+        dbHelper.deleteAllDownloads();
         downloadModels.clear();
         downloadAdapter = new DownloadAdapter(MainActivity.this, downloadModels, MainActivity.this);
         data_list.setLayoutManager(new LinearLayoutManager(MainActivity.this));
@@ -194,6 +187,11 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
     }
 
     private void downloadFile(String url) {
+        if (!checkPermission()) {
+            requestPermission();
+            Toast.makeText(this, "Please Allow Permission to Download File", Toast.LENGTH_SHORT).show();
+            return;
+        }
         String filename = URLUtil.guessFileName(url, null, null);
         String downloadPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath();
         String type = filename.split("\\.")[1];
@@ -208,30 +206,11 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
                 .setRequiresCharging(false)
                 .setAllowedOverMetered(true)
                 .setAllowedOverRoaming(true);
-//        if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.N){
-//            request =new DownloadManager.Request(Uri.parse(url))
-//                    .setTitle(filename)
-//                    .setDescription("Downloading")
-//                    .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
-//                    .setDestinationInExternalFilesDir(this,  Environment.DIRECTORY_DOWNLOADS,  filename)
-//                    .setRequiresCharging(false)
-//                    .setAllowedOverMetered(true)
-//                    .setAllowedOverRoaming(true);
-//        }
-//        else{
-//            request=new DownloadManager.Request(Uri.parse(url))
-//                    .setTitle(filename)
-//                    .setDescription("Downloading")
-//                    .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-//                    .setDestinationInExternalFilesDir(this,  downloadPath,  filename)
-//                    .setRequiresCharging(false)
-//                    .setAllowedOverMetered(true)
-//                    .setAllowedOverRoaming(true);
-//        }
+
         DownloadManager downloadManager = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
         long downloadId = downloadManager.enqueue(request);
 
-        Number currentnum = realm.where(DownloadModel.class).max("id");
+        Number currentnum = dbHelper.getCurrentMaxId();
         int nextId;
 
         if (currentnum == null) {
@@ -252,13 +231,7 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
         downloadModels.add(downloadModel);
         downloadAdapter.notifyItemInserted(downloadModels.size() - 1);
 
-        realm.executeTransaction(new Realm.Transaction() {
-            @Override
-            public void execute(Realm realm) {
-                realm.copyToRealm(downloadModel);
-            }
-        });
-
+        dbHelper.addDownload(downloadModel);
 
         DownloadStatusTask downloadStatusTask = new DownloadStatusTask(downloadModel);
         runTask(downloadStatusTask, "" + downloadId);
@@ -303,7 +276,6 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
     }
 
     public class DownloadStatusTask extends AsyncTask<String, String, String> {
-
         DownloadModel downloadModel;
 
         public DownloadStatusTask(DownloadModel downloadModel) {
@@ -331,34 +303,33 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
 
                 if (cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)) == DownloadManager.STATUS_SUCCESSFUL) {
                     downloading = false;
-                }
+                    SQLiteDatabase db = dbHelper.getWritableDatabase();
+                    ContentValues contentValues = new ContentValues();
+                    contentValues.put("file_size", bytesIntoHumanReadable(total_size));
+                    contentValues.put("progress", "100");
 
+                    db.update("DownloadModel", contentValues, "downloadId=?", new String[]{String.valueOf(downloadModel.getId())});
+                }
 
                 int progress = (int) ((bytes_downloaded * 100L) / total_size);
                 String status = getStatusMessage(cursor);
+
                 publishProgress(new String[]{String.valueOf(progress), String.valueOf(bytes_downloaded), status});
                 cursor.close();
             }
-
         }
 
+        @SuppressLint("NotifyDataSetChanged")
         @Override
         protected void onProgressUpdate(final String... values) {
             super.onProgressUpdate(values);
-            realm.executeTransaction(new Realm.Transaction() {
-                @Override
-                public void execute(Realm realm) {
-
-                    downloadModel.setFile_size(bytesIntoHumanReadable(Long.parseLong(values[1])));
-                    downloadModel.setProgress(values[0]);
-                    if (!downloadModel.getStatus().equalsIgnoreCase("PAUSE") && !downloadModel.getStatus().equalsIgnoreCase("RESUME")) {
-                        downloadModel.setStatus(values[2]);
-                    }
-                    downloadAdapter.changeItem(downloadModel.getDownloadId());
-
-                }
-            });
-
+            downloadModel.setFile_size(bytesIntoHumanReadable(Long.parseLong(values[1])));
+            downloadModel.setProgress(values[0]);
+            if (!downloadModel.getStatus().equalsIgnoreCase("PAUSE") && !downloadModel.getStatus().equalsIgnoreCase("RESUME")) {
+                downloadModel.setStatus(values[2]);
+            }
+            downloadAdapter.changeItem(downloadModel.getDownloadId());
+            downloadAdapter.notifyDataSetChanged();
         }
     }
 
@@ -451,9 +422,8 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
         }
     }
 
-    private RealmResults<DownloadModel> getAllDownloads() {
-        Realm realm = Realm.getDefaultInstance();
-        return realm.where(DownloadModel.class).findAll();
+    private List<DownloadModel> getAllDownloads() {
+        return dbHelper.getAllDownloads();
     }
 
     private void requestPermission() {
@@ -466,11 +436,7 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
 
     private boolean checkPermission() {
         int result = ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
-        if (result == PackageManager.PERMISSION_GRANTED) {
-            return true;
-        } else {
-            return false;
-        }
+        return result == PackageManager.PERMISSION_GRANTED;
     }
 
     @Override
@@ -487,18 +453,16 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
     }
 
     private void openFile(String fileurl) {
-        if (Build.VERSION.SDK_INT >= 23) {
-            if (!checkPermission()) {
-                requestPermission();
-                Toast.makeText(this, "Please Allow Permission to Open File", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
+        if (!checkPermission()) {
+            requestPermission();
+            Toast.makeText(this, "Please Allow Permission to Open File", Toast.LENGTH_SHORT).show();
+            return;
         }
 
         try {
             fileurl = PathUtil.getPath(MainActivity.this, Uri.parse(fileurl));
 
+            assert fileurl != null;
             File file = new File(fileurl);
             MimeTypeMap mimeTypeMap = MimeTypeMap.getSingleton();
             String ext = MimeTypeMap.getFileExtensionFromUrl(file.getName());
@@ -509,19 +473,13 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
             }
 
             Intent intent = new Intent(Intent.ACTION_VIEW);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                Uri contne = FileProvider.getUriForFile(this, "com.example.download_manager", file);
-                intent.setDataAndType(contne, type);
-            } else {
-                intent.setDataAndType(Uri.fromFile(file), type);
-            }
+            intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            Uri contne = FileProvider.getUriForFile(this, "com.example.download_manager", file);
+            intent.setDataAndType(contne, type);
             startActivity(intent);
         } catch (Exception e) {
             e.printStackTrace();
             Toast.makeText(this, "Unable to Open File", Toast.LENGTH_SHORT).show();
         }
-
     }
-
 }
