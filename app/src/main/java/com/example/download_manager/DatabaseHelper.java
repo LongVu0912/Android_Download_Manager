@@ -23,9 +23,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public void onCreate(SQLiteDatabase db) {
         String CREATE_DOWNLOAD_TABLE = "CREATE TABLE DownloadModel (downloadId INTEGER PRIMARY KEY, title TEXT, file_path TEXT, progress TEXT, status TEXT, file_size TEXT, is_paused INTEGER)";
         db.execSQL(CREATE_DOWNLOAD_TABLE);
-
-//        String ADD_DOWNLOAD_TABLE = "INSERT INTO DownloadModel (title, file_path, progress, status, file_size, is_paused) VALUES ('Test', 'file_path', '50', 'FINISHED', '100', 0)";
-//        db.execSQL(ADD_DOWNLOAD_TABLE);
     }
 
     @Override

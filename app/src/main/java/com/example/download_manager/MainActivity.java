@@ -27,7 +27,6 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.AsyncTask;
-import android.os.Build;
 import android.os.Environment;
 import android.util.Log;
 import android.view.View;
@@ -40,18 +39,14 @@ import android.widget.Toast;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-
-import io.realm.Realm;
+import java.util.Objects;
 
 public class MainActivity extends AppCompatActivity implements ItemClickListener {
 
     private static final int PERMISSION_REQUEST_CODE = 101;
     DownloadAdapter downloadAdapter;
     List<DownloadModel> downloadModels = new ArrayList<>();
-    Realm realm;
-    private SQLiteDatabase database;
     private DatabaseHelper dbHelper;
-    Context context;
     RecyclerView data_list;
 
     @Override
@@ -59,17 +54,11 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         dbHelper = new DatabaseHelper(this);
-        database = dbHelper.getWritableDatabase();
         registerReceiver(onComplete, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
         Button add_download_list = findViewById(R.id.add_download_list);
         data_list = findViewById(R.id.data_list);
 
-        add_download_list.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showInputDialog();
-            }
-        });
+        add_download_list.setOnClickListener(v -> showInputDialog());
 
         List<DownloadModel> downloadModelsLocal = getAllDownloads();
         if (downloadModelsLocal != null) {
@@ -118,21 +107,21 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
     private void handlePdfFile(Intent intent) {
         Uri pdffile = intent.getParcelableExtra(Intent.EXTRA_STREAM);
         if (pdffile != null) {
-            Log.d("Pdf File Path : ", "" + pdffile.getPath());
+            Log.d("Pdf File Path : ", Objects.requireNonNull(pdffile.getPath()));
         }
     }
 
     private void handleImage(Intent intent) {
         Uri image = intent.getParcelableExtra(Intent.EXTRA_STREAM);
         if (image != null) {
-            Log.d("Image File Path : ", "" + image.getPath());
+            Log.d("Image File Path : ", Objects.requireNonNull(image.getPath()));
         }
     }
 
     private void handleTextData(Intent intent) {
         String textdata = intent.getStringExtra(Intent.EXTRA_TEXT);
         if (textdata != null) {
-            Log.d("Text Data : ", "" + textdata);
+            Log.d("Text Data : ", textdata);
             downloadFile(textdata);
         }
     }
@@ -141,7 +130,7 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
         ArrayList<Uri> imageList = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
         if (imageList != null) {
             for (Uri uri : imageList) {
-                Log.d("Path ", "" + uri.getPath());
+                Log.d("Path ", Objects.requireNonNull(uri.getPath()));
             }
         }
     }
@@ -156,31 +145,20 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
         final EditText editText = view.findViewById(R.id.input);
         Button paste = view.findViewById(R.id.paste);
 
-        paste.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                ClipboardManager clipboardManager = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-                try {
-                    CharSequence charSequence = clipboardManager.getPrimaryClip().getItemAt(0).getText();
-                    editText.setText(charSequence);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+        paste.setOnClickListener(v -> {
+            ClipboardManager clipboardManager = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            try {
+                CharSequence charSequence = Objects.requireNonNull(clipboardManager.getPrimaryClip()).getItemAt(0).getText();
+                editText.setText(charSequence);
+            } catch (Exception e) {
+                System.out.println(e.getMessage());
             }
         });
 
-        al.setPositiveButton("Download", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                downloadFile(editText.getText().toString());
-            }
-        });
+        al.setPositiveButton("Download", (dialog, which) -> downloadFile(editText.getText().toString()));
 
-        al.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
+        al.setNegativeButton("Cancel", (dialog, which) -> {
 
-            }
         });
         al.show();
 
@@ -239,37 +217,25 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
 
     @Override
     public void onCLickItem(String file_path) {
-        Log.d("File Path : ", "" + file_path);
+        Log.d("File Path : ", file_path);
         openFile(file_path);
     }
 
     @Override
     public void onShareClick(DownloadModel downloadModel) {
         File file = new File(downloadModel.getFile_path().replaceAll("file:///", ""));
-        Log.d("File Path", "" + file.getAbsolutePath());
-        MimeTypeMap mimeTypeMap = MimeTypeMap.getSingleton();
-        String ext = MimeTypeMap.getFileExtensionFromUrl(file.getName());
-        String type = mimeTypeMap.getExtensionFromMimeType(ext);
-
-        if (type == null) {
-            type = "*/*";
-        }
 
         try {
             Intent intent = new Intent(Intent.ACTION_SEND);
             intent.putExtra(Intent.EXTRA_TEXT, "Sharing File from File Downloader");
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                Uri path = FileProvider.getUriForFile(MainActivity.this, "com.example.download_manager", file);
-                intent.putExtra(Intent.EXTRA_STREAM, path);
-            } else {
-                intent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(file));
-            }
+            intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            Uri path = FileProvider.getUriForFile(MainActivity.this, "com.example.download_manager", file);
+            intent.putExtra(Intent.EXTRA_STREAM, path);
             intent.setType("*/*");
             startActivity(intent);
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
             Toast.makeText(this, "No Activity Availabe to Handle File", Toast.LENGTH_SHORT).show();
         }
 
@@ -329,13 +295,13 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
                 downloadModel.setStatus(values[2]);
             }
             downloadAdapter.changeItem(downloadModel.getDownloadId());
-            downloadAdapter.notifyDataSetChanged();
+//            downloadAdapter.notifyDataSetChanged();
         }
     }
 
     @SuppressLint("Range")
     private String getStatusMessage(Cursor cursor) {
-        String msg = "-";
+        String msg;
         switch (cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS))) {
             case DownloadManager.STATUS_FAILED:
                 msg = "Failed";
@@ -386,13 +352,9 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
 
     public void runTask(DownloadStatusTask downloadStatusTask, String id) {
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
-                downloadStatusTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, new String[]{id});
-            } else {
-                downloadStatusTask.execute(new String[]{id});
-            }
+            downloadStatusTask.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, id);
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
         }
     }
 
@@ -442,13 +404,12 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        switch (requestCode) {
-            case PERMISSION_REQUEST_CODE:
-                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    Toast.makeText(MainActivity.this, "Permission Successfull", Toast.LENGTH_SHORT).show();
-                } else {
-                    Toast.makeText(MainActivity.this, "Permission Failed", Toast.LENGTH_SHORT).show();
-                }
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(MainActivity.this, "Permission Successfull", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(MainActivity.this, "Permission Failed", Toast.LENGTH_SHORT).show();
+            }
         }
     }
 
@@ -478,7 +439,7 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
             intent.setDataAndType(contne, type);
             startActivity(intent);
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
             Toast.makeText(this, "Unable to Open File", Toast.LENGTH_SHORT).show();
         }
     }

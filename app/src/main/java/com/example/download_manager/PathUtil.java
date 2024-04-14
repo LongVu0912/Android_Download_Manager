@@ -63,6 +63,7 @@ public class PathUtil {
                     return cursor.getString(column_index);
                 }
             } catch (Exception e) {
+                System.out.println(e.getMessage());
             }
         } else if ("file".equalsIgnoreCase(uri.getScheme())) {
             return uri.getPath();

@@ -17,21 +17,22 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class DownloadAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     Context context;
-    List<DownloadModel> downloadModels = new ArrayList<>();
+    List<DownloadModel> downloadModels;
     ItemClickListener clickListener;
+    SQLiteDatabase db;
 
     public DownloadAdapter(Context context, List<DownloadModel> downloadModels, ItemClickListener itemClickListener) {
         this.context = context;
         this.clickListener = itemClickListener;
         this.downloadModels = downloadModels;
+        this.db = new DatabaseHelper(context).getWritableDatabase();
     }
 
-    public class DownloadViewHolder extends RecyclerView.ViewHolder {
+    public static class DownloadViewHolder extends RecyclerView.ViewHolder {
         TextView file_title;
         TextView file_size;
         ProgressBar file_progress;
@@ -57,10 +58,11 @@ public class DownloadAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
     public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         RecyclerView.ViewHolder vh;
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.download_row, parent, false);
-        vh = new DownloadAdapter.DownloadViewHolder(view);
+        vh = new DownloadViewHolder(view);
         return vh;
     }
 
+    @SuppressLint("SetTextI18n")
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, @SuppressLint("RecyclerView") final int position) {
         final DownloadModel downloadModel = downloadModels.get(position);
@@ -81,49 +83,35 @@ public class DownloadAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
             downloadViewHolder.file_status.setText("Running");
         }
 
-
-        downloadViewHolder.pause_resume.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (downloadModel.getIs_paused()) {
-                    downloadModel.setIs_paused(false);
-                    downloadViewHolder.pause_resume.setText("PAUSE");
-                    downloadModel.setStatus("RESUME");
-                    downloadViewHolder.file_status.setText("Running");
-                    if (!resumeDownload(downloadModel)) {
-                        Toast.makeText(context, "Failed to Resume", Toast.LENGTH_SHORT).show();
-                    }
-                    notifyItemChanged(position);
-                } else {
-                    if (downloadModel.getStatus().equalsIgnoreCase("COMPLETED")) {
-                        Toast.makeText(context, "File Downloaded", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    downloadModel.setIs_paused(true);
-                    downloadViewHolder.pause_resume.setText("RESUME");
-                    downloadModel.setStatus("PAUSE");
-                    downloadViewHolder.file_status.setText("PAUSE");
-                    if (!pauseDownload(downloadModel)) {
-                        Toast.makeText(context, "Failed to Pause", Toast.LENGTH_SHORT).show();
-                    }
-                    notifyItemChanged(position);
+        downloadViewHolder.pause_resume.setOnClickListener(v -> {
+            if (downloadModel.getIs_paused()) {
+                downloadModel.setIs_paused(false);
+                downloadViewHolder.pause_resume.setText("PAUSE");
+                downloadModel.setStatus("RESUME");
+                downloadViewHolder.file_status.setText("Running");
+                if (!resumeDownload(downloadModel)) {
+                    Toast.makeText(context, "Failed to Resume", Toast.LENGTH_SHORT).show();
                 }
+                notifyItemChanged(position);
+            } else {
+                if (downloadModel.getStatus().equalsIgnoreCase("COMPLETED")) {
+                    Toast.makeText(context, "File Downloaded", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                downloadModel.setIs_paused(true);
+                downloadViewHolder.pause_resume.setText("RESUME");
+                downloadModel.setStatus("PAUSE");
+                downloadViewHolder.file_status.setText("PAUSE");
+                if (!pauseDownload(downloadModel)) {
+                    Toast.makeText(context, "Failed to Pause", Toast.LENGTH_SHORT).show();
+                }
+                notifyItemChanged(position);
             }
         });
 
-        downloadViewHolder.main_rel.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                clickListener.onCLickItem(downloadModel.getFile_path());
-            }
-        });
+        downloadViewHolder.main_rel.setOnClickListener(v -> clickListener.onCLickItem(downloadModel.getFile_path()));
 
-        downloadViewHolder.sharefile.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                clickListener.onShareClick(downloadModel);
-            }
-        });
+        downloadViewHolder.sharefile.setOnClickListener(v -> clickListener.onShareClick(downloadModel));
 
     }
 
@@ -135,7 +123,8 @@ public class DownloadAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
         try {
             updatedRow = context.getContentResolver().update(Uri.parse("content://downloads/my_downloads"), contentValues, "title=?", new String[]{downloadModel.getTitle()});
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
+            Toast.makeText(context, e.getMessage(), Toast.LENGTH_SHORT).show();
         }
         return 0 < updatedRow;
     }
@@ -148,7 +137,8 @@ public class DownloadAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
         try {
             updatedRow = context.getContentResolver().update(Uri.parse("content://downloads/my_downloads"), contentValues, "title=?", new String[]{downloadModel.getTitle()});
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e.getMessage());
+            Toast.makeText(context, e.getMessage(), Toast.LENGTH_SHORT).show();
         }
         return 0 < updatedRow;
     }
@@ -173,7 +163,6 @@ public class DownloadAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
         int i = 0;
         for (final DownloadModel downloadModel : downloadModels) {
             if (downloadid == downloadModel.getDownloadId()) {
-                SQLiteDatabase db = new DatabaseHelper(context).getWritableDatabase();
                 ContentValues contentValues = new ContentValues();
                 contentValues.put("status", message);
                 int updatedRow = db.update("DownloadModel", contentValues, "downloadId=?", new String[]{String.valueOf(downloadModel.getId())});
@@ -190,7 +179,6 @@ public class DownloadAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
     }
 
     public void setChangeItemFilePath(final String path, long id) {
-        SQLiteDatabase db = new DatabaseHelper(context).getWritableDatabase();
         int i = 0;
         for (DownloadModel downloadModel : downloadModels) {
             if (id == downloadModel.getDownloadId()) {

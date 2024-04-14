@@ -10,7 +10,6 @@ public class DownloadModel {
     private long downloadId;
     private String file_path;
 
-    // Getters and Setters
     public int getId() {
         return id;
     }
