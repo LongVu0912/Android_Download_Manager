@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Android Download Manager</string>
+    <string name="app_name">Download Manager</string>
     <string name="file_name">File Name</string>
     <string name="downloaded_15mb">Downloaded : 15MB</string>
     <string name="pending">Pending</string>
