@@ -3,6 +3,22 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="blue">#0267ff</color>
-    <color name="red">#FF0000</color>
+
+    <color name="red500">#f26266</color>
+    <color name="red600">#f15156</color>
+    <color name="red700">#d8484d</color>
+    <color name="red800">#c04044</color>
+    <color name="red900">#a8383c</color>
+
+
+
+    <color name="green500">#33b873</color>
+    <color name="green600">#2da567</color>
+    <color name="green700">#28935c</color>
+    <color name="green800">#238050</color>
+    <color name="green900">#1e6e45</color>
+
+    <color name="text_white">#FFFFFF</color>
+
     <color name="transparent">@android:color/transparent</color>
 </resources>

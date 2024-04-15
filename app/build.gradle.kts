@@ -1,7 +1,6 @@
 plugins {
     id("com.android.application")
 }
-apply(plugin = "realm-android")
 
 android {
     namespace = "com.example.download_manager"

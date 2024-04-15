@@ -1,4 +1,4 @@
-package com.example.download_manager;
+package com.example.download_manager.adapters;
 
 import android.annotation.SuppressLint;
 import android.content.ContentValues;
@@ -17,6 +17,11 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.download_manager.databases.DatabaseHelper;
+import com.example.download_manager.ItemClickListener;
+import com.example.download_manager.R;
+import com.example.download_manager.models.DownloadModel;
+
 import java.util.List;
 
 public class DownloadAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
@@ -34,7 +39,7 @@ public class DownloadAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
         TextView file_title;
         TextView file_size;
         ProgressBar file_progress;
-        Button pause_resume, sharefile;
+        Button pause_resume, sharefile, remove;
         TextView file_status;
         RelativeLayout main_rel;
 
@@ -47,6 +52,7 @@ public class DownloadAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
             pause_resume = itemView.findViewById(R.id.pause_resume);
             main_rel = itemView.findViewById(R.id.main_rel);
             sharefile = itemView.findViewById(R.id.sharefile);
+            remove = itemView.findViewById(R.id.remove_btn);
         }
 
     }
@@ -64,6 +70,7 @@ public class DownloadAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, @SuppressLint("RecyclerView") final int position) {
         final DownloadModel downloadModel = downloadModels.get(position);
+
         final DownloadAdapter.DownloadViewHolder downloadViewHolder = (DownloadAdapter.DownloadViewHolder) holder;
 
         downloadViewHolder.file_title.setText(downloadModel.getTitle());
@@ -107,16 +114,18 @@ public class DownloadAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
             }
         });
 
-        downloadViewHolder.main_rel.setOnClickListener(v -> clickListener.onCLickItem(downloadModel.getFile_path()));
+        downloadViewHolder.main_rel.setOnClickListener(v -> clickListener.onClickItem(downloadModel.getFile_path(), downloadModel.getStatus()));
 
         downloadViewHolder.sharefile.setOnClickListener(v -> clickListener.onShareClick(downloadModel));
+
+        downloadViewHolder.remove.setOnClickListener(v -> clickListener.onRemoveClick(position));
 
     }
 
     private boolean pauseDownload(DownloadModel downloadModel) {
         int updatedRow = 0;
         ContentValues contentValues = new ContentValues();
-        contentValues.put("control", 1);
+        contentValues.put("control", 1); //control = 1 is pause download
 
         try {
             updatedRow = context.getContentResolver().update(Uri.parse("content://downloads/my_downloads"), contentValues, "title=?", new String[]{downloadModel.getTitle()});
@@ -164,7 +173,7 @@ public class DownloadAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
             if (downloadid == downloadModel.getDownloadId()) {
                 ContentValues contentValues = new ContentValues();
                 contentValues.put("status", message);
-                int updatedRow = db.update("DownloadModel", contentValues, "downloadId=?", new String[]{String.valueOf(downloadModel.getId())});
+                int updatedRow = db.update("DownloadModel", contentValues, "downloadId=?", new String[]{String.valueOf(downloadModel.getDownloadId())});
                 db.close();
                 if (0 < updatedRow) {
                     downloadModels.get(i).setStatus(message);
@@ -184,7 +193,7 @@ public class DownloadAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
             if (id == downloadModel.getDownloadId()) {
                 ContentValues contentValues = new ContentValues();
                 contentValues.put("file_path", path);
-                int updatedRow = db.update("DownloadModel", contentValues, "downloadId=?", new String[]{String.valueOf(downloadModel.getId())});
+                int updatedRow = db.update("DownloadModel", contentValues, "downloadId=?", new String[]{String.valueOf(downloadModel.getDownloadId())});
                 db.close();
                 if (0 < updatedRow) {
                     downloadModels.get(i).setFile_path(path);

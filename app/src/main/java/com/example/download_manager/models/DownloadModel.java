@@ -1,7 +1,6 @@
-package com.example.download_manager;
+package com.example.download_manager.models;
 
 public class DownloadModel {
-    private int id;
     private String status;
     private String title;
     private String file_size;
@@ -9,14 +8,6 @@ public class DownloadModel {
     private boolean is_paused;
     private long downloadId;
     private String file_path;
-
-    public int getId() {
-        return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
-    }
 
     public String getStatus() {
         return status;

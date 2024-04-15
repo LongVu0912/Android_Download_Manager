@@ -13,6 +13,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Download_Manager"
+rootProject.name = "Android_Download_Manager"
 include(":app")
  

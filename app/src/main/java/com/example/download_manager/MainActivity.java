@@ -4,7 +4,9 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.annotation.SuppressLint;
 import android.content.ContentValues;
+import android.content.DialogInterface;
 import android.database.sqlite.SQLiteDatabase;
+import android.os.Build;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
@@ -20,7 +22,6 @@ import android.app.DownloadManager;
 import android.content.BroadcastReceiver;
 import android.content.ClipboardManager;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
@@ -35,6 +36,11 @@ import android.webkit.URLUtil;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
+
+import com.example.download_manager.adapters.DownloadAdapter;
+import com.example.download_manager.databases.DatabaseHelper;
+import com.example.download_manager.models.DownloadModel;
+import com.example.download_manager.utils.PathUtil;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -53,8 +59,11 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
         dbHelper = new DatabaseHelper(this);
-        registerReceiver(onComplete, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            registerReceiver(onComplete, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), Context.RECEIVER_NOT_EXPORTED);
+        }
         Button add_download_list = findViewById(R.id.add_download_list);
         data_list = findViewById(R.id.data_list);
 
@@ -87,10 +96,6 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
                     handleImage(intent);
                 } else if (type.equalsIgnoreCase("application/pdf")) {
                     handlePdfFile(intent);
-                }
-            } else if (Intent.ACTION_SEND_MULTIPLE.equals(action) && type != null) {
-                if (type.startsWith("image/")) {
-                    handleMultipleImage(intent);
                 }
             }
         }
@@ -126,21 +131,10 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
         }
     }
 
-    private void handleMultipleImage(Intent intent) {
-        ArrayList<Uri> imageList = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
-        if (imageList != null) {
-            for (Uri uri : imageList) {
-                Log.d("Path ", Objects.requireNonNull(uri.getPath()));
-            }
-        }
-    }
-
-
     private void showInputDialog() {
         AlertDialog.Builder al = new AlertDialog.Builder(MainActivity.this);
-        View view = getLayoutInflater().inflate(R.layout.input_dilaog, null);
+        View view = getLayoutInflater().inflate(R.layout.input_dialog, null);
         al.setView(view);
-
 
         final EditText editText = view.findViewById(R.id.input);
         Button paste = view.findViewById(R.id.paste);
@@ -160,8 +154,16 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
         al.setNegativeButton("Cancel", (dialog, which) -> {
 
         });
-        al.show();
+        AlertDialog AL = al.create();
+        AL.setOnShowListener(dialog -> {
+            Button positiveBtn = AL.getButton(DialogInterface.BUTTON_POSITIVE);
+            Button negativeBtn = AL.getButton(DialogInterface.BUTTON_NEGATIVE);
 
+            positiveBtn.setTextColor(getResources().getColor(R.color.green700, null));
+            negativeBtn.setTextColor(getResources().getColor(R.color.red700, null));
+
+        });
+        AL.show();
     }
 
     private void downloadFile(String url) {
@@ -170,6 +172,7 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
             Toast.makeText(this, "Please Allow Permission to Download File", Toast.LENGTH_SHORT).show();
             return;
         }
+
         String filename = URLUtil.guessFileName(url, null, null);
         String downloadPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath();
         String type = filename.split("\\.")[1];
@@ -188,16 +191,7 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
         DownloadManager downloadManager = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
         long downloadId = downloadManager.enqueue(request);
 
-        Number currentnum = dbHelper.getCurrentMaxId();
-        int nextId;
-
-        if (currentnum == null) {
-            nextId = 1;
-        } else {
-            nextId = currentnum.intValue() + 1;
-        }
         final DownloadModel downloadModel = new DownloadModel();
-        downloadModel.setId(nextId);
         downloadModel.setStatus("Downloading");
         downloadModel.setTitle(filename);
         downloadModel.setFile_size("0");
@@ -216,8 +210,11 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
     }
 
     @Override
-    public void onCLickItem(String file_path) {
-        Log.d("File Path : ", file_path);
+    public void onClickItem(String file_path, String status) {
+        if (!Objects.equals(status, "Completed")) {
+            Toast.makeText(this, "File is not Downloaded Yet", Toast.LENGTH_SHORT).show();
+            return;
+        }
         openFile(file_path);
     }
 
@@ -241,6 +238,21 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
 
     }
 
+    @Override
+    public void onRemoveClick(int index) {
+        //remove a clicked download row from db
+        DownloadModel downloadModel = downloadModels.get(index);
+
+        dbHelper.deleteDownloadById(Long.valueOf(downloadModel.getDownloadId()).intValue());
+        System.out.println("index: " + index);
+        downloadModels.remove(index);
+        downloadAdapter.notifyItemRemoved(index);
+
+        // renew the correct position
+        downloadAdapter.notifyItemRangeChanged(0, downloadModels.size());
+    }
+
+    @SuppressLint("StaticFieldLeak")
     public class DownloadStatusTask extends AsyncTask<String, String, String> {
         DownloadModel downloadModel;
 
@@ -274,7 +286,7 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
                     contentValues.put("file_size", bytesIntoHumanReadable(total_size));
                     contentValues.put("progress", "100");
 
-                    db.update("DownloadModel", contentValues, "downloadId=?", new String[]{String.valueOf(downloadModel.getId())});
+                    db.update("DownloadModel", contentValues, "downloadId=?", new String[]{String.valueOf(downloadModel.getDownloadId())});
                 }
 
                 int progress = (int) ((bytes_downloaded * 100L) / total_size);
@@ -295,7 +307,6 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
                 downloadModel.setStatus(values[2]);
             }
             downloadAdapter.changeItem(downloadModel.getDownloadId());
-//            downloadAdapter.notifyDataSetChanged();
         }
     }
 

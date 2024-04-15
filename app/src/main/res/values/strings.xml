@@ -1,3 +1,12 @@
 <resources>
-    <string name="app_name">Download_Manager</string>
+    <string name="app_name">Android Download Manager</string>
+    <string name="file_name">File Name</string>
+    <string name="downloaded_15mb">Downloaded : 15MB</string>
+    <string name="pending">Pending</string>
+    <string name="pause">PAUSE</string>
+    <string name="share">SHARE</string>
+    <string name="remove">REMOVE</string>
+    <string name="add_download">ADD DOWNLOAD</string>
+    <string name="clear_all">CLEAR ALL</string>
+    <string name="paste">PASTE</string>
 </resources>

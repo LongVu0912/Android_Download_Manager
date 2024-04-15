@@ -1,4 +1,4 @@
-package com.example.download_manager;
+package com.example.download_manager.utils;
 
 import android.annotation.SuppressLint;
 import android.content.ContentUris;
