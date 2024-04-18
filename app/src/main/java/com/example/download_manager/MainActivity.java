@@ -40,6 +40,8 @@ import android.widget.Toast;
 import com.example.download_manager.adapters.DownloadAdapter;
 import com.example.download_manager.databases.DatabaseHelper;
 import com.example.download_manager.models.DownloadModel;
+import com.example.download_manager.utils.DownloadUtil;
+import com.example.download_manager.utils.ExtensionUtil;
 import com.example.download_manager.utils.PathUtil;
 
 import java.io.File;
@@ -55,36 +57,16 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
     private DatabaseHelper dbHelper;
     RecyclerView data_list;
 
+    Button add_download_list, clear_download_list;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        dbHelper = new DatabaseHelper(this);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            registerReceiver(onComplete, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), Context.RECEIVER_NOT_EXPORTED);
-        }
-        Button add_download_list = findViewById(R.id.add_download_list);
-        data_list = findViewById(R.id.data_list);
+        this.initView();
 
-        add_download_list.setOnClickListener(v -> showInputDialog());
-
-        List<DownloadModel> downloadModelsLocal = getAllDownloads();
-        if (downloadModelsLocal != null) {
-            if (!downloadModelsLocal.isEmpty()) {
-                downloadModels.addAll(downloadModelsLocal);
-                for (int i = 0; i < downloadModels.size(); i++) {
-                    if (downloadModels.get(i).getStatus().equalsIgnoreCase("Pending") || downloadModels.get(i).getStatus().equalsIgnoreCase("Running") || downloadModels.get(i).getStatus().equalsIgnoreCase("Downloading")) {
-                        DownloadStatusTask downloadStatusTask = new DownloadStatusTask(downloadModels.get(i));
-                        runTask(downloadStatusTask, "" + downloadModels.get(i).getDownloadId());
-                    }
-                }
-            }
-        }
-        downloadAdapter = new DownloadAdapter(MainActivity.this, downloadModels, MainActivity.this);
-        data_list.setLayoutManager(new LinearLayoutManager(MainActivity.this));
-        data_list.setAdapter(downloadAdapter);
-
+        //handle change screen when open the file
         Intent intent = getIntent();
         if (intent != null) {
             String action = intent.getAction();
@@ -93,35 +75,48 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
                 if (type.equalsIgnoreCase("text/plain")) {
                     handleTextData(intent);
                 } else if (type.startsWith("image/")) {
-                    handleImage(intent);
+                    ExtensionUtil.handleImage(intent);
                 } else if (type.equalsIgnoreCase("application/pdf")) {
-                    handlePdfFile(intent);
+                    ExtensionUtil.handlePdfFile(intent);
                 }
             }
         }
     }
 
-    public void ClearAllDownload(View view) {
-        dbHelper.deleteAllDownloads();
-        downloadModels.clear();
+    private void initView() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            registerReceiver(onComplete, new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), Context.RECEIVER_NOT_EXPORTED);
+        }
+
+        //Init props
+        dbHelper = new DatabaseHelper(this);
+        add_download_list = findViewById(R.id.add_download_list);
+        clear_download_list = findViewById(R.id.clear_download_list);
+        data_list = findViewById(R.id.data_list);
+
+        //Init action
+        add_download_list.setOnClickListener(v -> handleShowInputDialog());
+        clear_download_list.setOnClickListener(v -> handleClearAllDownload());
+
+        //Init adapter view
+        List<DownloadModel> downloadModelsLocal = dbHelper.getAllDownloads();
+        if (downloadModelsLocal != null && !downloadModelsLocal.isEmpty()) {
+            downloadModels.addAll(downloadModelsLocal);
+
+            for (int i = 0; i < downloadModels.size(); i++) {
+                if (downloadModels.get(i).getStatus().equalsIgnoreCase("Pending") || downloadModels.get(i).getStatus().equalsIgnoreCase("Running") || downloadModels.get(i).getStatus().equalsIgnoreCase("Downloading")) {
+                    //Continue download the file which still in download process
+                    DownloadStatusTask downloadStatusTask = new DownloadStatusTask(downloadModels.get(i));
+                    runTask(downloadStatusTask, "" + downloadModels.get(i).getDownloadId());
+                }
+            }
+        }
         downloadAdapter = new DownloadAdapter(MainActivity.this, downloadModels, MainActivity.this);
         data_list.setLayoutManager(new LinearLayoutManager(MainActivity.this));
         data_list.setAdapter(downloadAdapter);
     }
 
-    private void handlePdfFile(Intent intent) {
-        Uri pdffile = intent.getParcelableExtra(Intent.EXTRA_STREAM);
-        if (pdffile != null) {
-            Log.d("Pdf File Path : ", Objects.requireNonNull(pdffile.getPath()));
-        }
-    }
 
-    private void handleImage(Intent intent) {
-        Uri image = intent.getParcelableExtra(Intent.EXTRA_STREAM);
-        if (image != null) {
-            Log.d("Image File Path : ", Objects.requireNonNull(image.getPath()));
-        }
-    }
 
     private void handleTextData(Intent intent) {
         String textdata = intent.getStringExtra(Intent.EXTRA_TEXT);
@@ -131,7 +126,62 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
         }
     }
 
-    private void showInputDialog() {
+    @SuppressLint("NotifyDataSetChanged")
+    @Override
+    public void handleClearAllDownload() {
+        dbHelper.deleteAllDownloads();
+        downloadModels.clear();
+
+        downloadAdapter.notifyDataSetChanged();
+        // renew the correct position
+        downloadAdapter.notifyItemRangeChanged(0, downloadModels.size());
+    }
+
+    @Override
+    public void handleClickDownloadItem(String file_path, String status) {
+        if (!Objects.equals(status, "Completed")) {
+            Toast.makeText(this, "File is not Downloaded Yet", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        openFile(file_path);
+    }
+
+    @Override
+    public void handleClickShare(DownloadModel downloadModel) {
+        File file = new File(downloadModel.getFile_path().replaceAll("file:///", ""));
+
+        try {
+            Intent intent = new Intent(Intent.ACTION_SEND);
+            intent.putExtra(Intent.EXTRA_TEXT, "Sharing File from File Downloader");
+
+            intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            Uri path = FileProvider.getUriForFile(MainActivity.this, "com.example.download_manager", file);
+            intent.putExtra(Intent.EXTRA_STREAM, path);
+            intent.setType("*/*");
+            startActivity(intent);
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+            Toast.makeText(this, "No Activity Availabe to Handle File", Toast.LENGTH_SHORT).show();
+        }
+
+    }
+
+    @Override
+    public void handleClickRemove(int index) {
+        //remove a clicked download row from db
+        DownloadModel downloadModel = downloadModels.get(index);
+
+        dbHelper.deleteDownloadById(Long.valueOf(downloadModel.getDownloadId()).intValue());
+        System.out.println("index: " + index);
+        downloadModels.remove(index);
+        downloadAdapter.notifyItemRemoved(index);
+
+        // renew the correct position
+        downloadAdapter.notifyItemRangeChanged(0, downloadModels.size());
+    }
+
+    @Override
+    public void handleShowInputDialog() {
         AlertDialog.Builder al = new AlertDialog.Builder(MainActivity.this);
         View view = getLayoutInflater().inflate(R.layout.input_dialog, null);
         al.setView(view);
@@ -167,17 +217,21 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
     }
 
     private void downloadFile(String url) {
+
+        //Check permission of access storage in android device
         if (!checkPermission()) {
             requestPermission();
             Toast.makeText(this, "Please Allow Permission to Download File", Toast.LENGTH_SHORT).show();
             return;
         }
 
+        //Preprocessing
         String filename = URLUtil.guessFileName(url, null, null);
         String downloadPath = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getAbsolutePath();
         String type = filename.split("\\.")[1];
         File file = new File(downloadPath, filename);
 
+        //create basic request
         DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url))
                 .setMimeType(type)
                 .setTitle(filename)
@@ -188,17 +242,20 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
                 .setAllowedOverMetered(true)
                 .setAllowedOverRoaming(true);
 
+        //add request to download queue
         DownloadManager downloadManager = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
         long downloadId = downloadManager.enqueue(request);
 
-        final DownloadModel downloadModel = new DownloadModel();
-        downloadModel.setStatus("Downloading");
-        downloadModel.setTitle(filename);
-        downloadModel.setFile_size("0");
-        downloadModel.setProgress("0");
-        downloadModel.setIs_paused(false);
-        downloadModel.setDownloadId(downloadId);
-        downloadModel.setFile_path("");
+        // init model, add to view and db
+        final DownloadModel downloadModel = DownloadModel.builder()
+                .status("Downloading")
+                .title(filename)
+                .file_size("0")
+                .progress("0")
+                .is_paused(false)
+                .downloadId(downloadId)
+                .file_path("")
+                .build();
 
         downloadModels.add(downloadModel);
         downloadAdapter.notifyItemInserted(downloadModels.size() - 1);
@@ -207,49 +264,6 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
 
         DownloadStatusTask downloadStatusTask = new DownloadStatusTask(downloadModel);
         runTask(downloadStatusTask, "" + downloadId);
-    }
-
-    @Override
-    public void onClickItem(String file_path, String status) {
-        if (!Objects.equals(status, "Completed")) {
-            Toast.makeText(this, "File is not Downloaded Yet", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        openFile(file_path);
-    }
-
-    @Override
-    public void onShareClick(DownloadModel downloadModel) {
-        File file = new File(downloadModel.getFile_path().replaceAll("file:///", ""));
-
-        try {
-            Intent intent = new Intent(Intent.ACTION_SEND);
-            intent.putExtra(Intent.EXTRA_TEXT, "Sharing File from File Downloader");
-
-            intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            Uri path = FileProvider.getUriForFile(MainActivity.this, "com.example.download_manager", file);
-            intent.putExtra(Intent.EXTRA_STREAM, path);
-            intent.setType("*/*");
-            startActivity(intent);
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-            Toast.makeText(this, "No Activity Availabe to Handle File", Toast.LENGTH_SHORT).show();
-        }
-
-    }
-
-    @Override
-    public void onRemoveClick(int index) {
-        //remove a clicked download row from db
-        DownloadModel downloadModel = downloadModels.get(index);
-
-        dbHelper.deleteDownloadById(Long.valueOf(downloadModel.getDownloadId()).intValue());
-        System.out.println("index: " + index);
-        downloadModels.remove(index);
-        downloadAdapter.notifyItemRemoved(index);
-
-        // renew the correct position
-        downloadAdapter.notifyItemRangeChanged(0, downloadModels.size());
     }
 
     @SuppressLint("StaticFieldLeak")
@@ -283,14 +297,14 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
                     downloading = false;
                     SQLiteDatabase db = dbHelper.getWritableDatabase();
                     ContentValues contentValues = new ContentValues();
-                    contentValues.put("file_size", bytesIntoHumanReadable(total_size));
+                    contentValues.put("file_size", DownloadUtil.bytesIntoHumanReadable(total_size));
                     contentValues.put("progress", "100");
 
                     db.update("DownloadModel", contentValues, "downloadId=?", new String[]{String.valueOf(downloadModel.getDownloadId())});
                 }
 
                 int progress = (int) ((bytes_downloaded * 100L) / total_size);
-                String status = getStatusMessage(cursor);
+                String status = DownloadUtil.getStatusMessage(cursor);
 
                 publishProgress(new String[]{String.valueOf(progress), String.valueOf(bytes_downloaded), status});
                 cursor.close();
@@ -301,39 +315,13 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
         @Override
         protected void onProgressUpdate(final String... values) {
             super.onProgressUpdate(values);
-            downloadModel.setFile_size(bytesIntoHumanReadable(Long.parseLong(values[1])));
+            downloadModel.setFile_size(DownloadUtil.bytesIntoHumanReadable(Long.parseLong(values[1])));
             downloadModel.setProgress(values[0]);
             if (!downloadModel.getStatus().equalsIgnoreCase("PAUSE") && !downloadModel.getStatus().equalsIgnoreCase("RESUME")) {
                 downloadModel.setStatus(values[2]);
             }
             downloadAdapter.changeItem(downloadModel.getDownloadId());
         }
-    }
-
-    @SuppressLint("Range")
-    private String getStatusMessage(Cursor cursor) {
-        String msg;
-        switch (cursor.getInt(cursor.getColumnIndex(DownloadManager.COLUMN_STATUS))) {
-            case DownloadManager.STATUS_FAILED:
-                msg = "Failed";
-                break;
-            case DownloadManager.STATUS_PAUSED:
-                msg = "Paused";
-                break;
-            case DownloadManager.STATUS_RUNNING:
-                msg = "Running";
-                break;
-            case DownloadManager.STATUS_SUCCESSFUL:
-                msg = "Completed";
-                break;
-            case DownloadManager.STATUS_PENDING:
-                msg = "Pending";
-                break;
-            default:
-                msg = "Unknown";
-                break;
-        }
-        return msg;
     }
 
     BroadcastReceiver onComplete = new BroadcastReceiver() {
@@ -367,36 +355,6 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
         } catch (Exception e) {
             System.out.println(e.getMessage());
         }
-    }
-
-    private String bytesIntoHumanReadable(long bytes) {
-        long kilobyte = 1024;
-        long megabyte = kilobyte * 1024;
-        long gigabyte = megabyte * 1024;
-        long terabyte = gigabyte * 1024;
-
-        if ((bytes >= 0) && (bytes < kilobyte)) {
-            return bytes + " B";
-
-        } else if ((bytes >= kilobyte) && (bytes < megabyte)) {
-            return (bytes / kilobyte) + " KB";
-
-        } else if ((bytes >= megabyte) && (bytes < gigabyte)) {
-            return (bytes / megabyte) + " MB";
-
-        } else if ((bytes >= gigabyte) && (bytes < terabyte)) {
-            return (bytes / gigabyte) + " GB";
-
-        } else if (bytes >= terabyte) {
-            return (bytes / terabyte) + " TB";
-
-        } else {
-            return bytes + " Bytes";
-        }
-    }
-
-    private List<DownloadModel> getAllDownloads() {
-        return dbHelper.getAllDownloads();
     }
 
     private void requestPermission() {

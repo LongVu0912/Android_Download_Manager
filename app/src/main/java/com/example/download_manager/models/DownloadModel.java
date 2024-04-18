@@ -1,5 +1,13 @@
 package com.example.download_manager.models;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.NoArgsConstructor;
+
+
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class DownloadModel {
     private String status;
     private String title;

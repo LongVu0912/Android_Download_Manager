@@ -114,11 +114,11 @@ public class DownloadAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
             }
         });
 
-        downloadViewHolder.main_rel.setOnClickListener(v -> clickListener.onClickItem(downloadModel.getFile_path(), downloadModel.getStatus()));
+        downloadViewHolder.main_rel.setOnClickListener(v -> clickListener.handleClickDownloadItem(downloadModel.getFile_path(), downloadModel.getStatus()));
 
-        downloadViewHolder.sharefile.setOnClickListener(v -> clickListener.onShareClick(downloadModel));
+        downloadViewHolder.sharefile.setOnClickListener(v -> clickListener.handleClickShare(downloadModel));
 
-        downloadViewHolder.remove.setOnClickListener(v -> clickListener.onRemoveClick(position));
+        downloadViewHolder.remove.setOnClickListener(v -> clickListener.handleClickRemove(position));
 
     }
 
