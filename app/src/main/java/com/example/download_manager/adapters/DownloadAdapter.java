@@ -78,7 +78,7 @@ public class DownloadAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
         downloadViewHolder.file_progress.setProgress(Integer.parseInt(downloadModel.getProgress()));
         downloadViewHolder.file_size.setText("Downloaded : " + downloadModel.getFile_size());
 
-        if (downloadModel.getIs_paused()) {
+        if (downloadModel.isPaused()) {
             downloadViewHolder.pause_resume.setText("RESUME");
         } else {
             downloadViewHolder.pause_resume.setText("PAUSE");
@@ -89,8 +89,8 @@ public class DownloadAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
         }
 
         downloadViewHolder.pause_resume.setOnClickListener(v -> {
-            if (downloadModel.getIs_paused()) {
-                downloadModel.setIs_paused(false);
+            if (downloadModel.isPaused()) {
+                downloadModel.setPaused(false);
                 downloadViewHolder.pause_resume.setText("PAUSE");
                 downloadModel.setStatus("RESUME");
                 downloadViewHolder.file_status.setText("Running");
@@ -103,7 +103,7 @@ public class DownloadAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolde
                     Toast.makeText(context, "File Downloaded", Toast.LENGTH_SHORT).show();
                     return;
                 }
-                downloadModel.setIs_paused(true);
+                downloadModel.setPaused(true);
                 downloadViewHolder.pause_resume.setText("RESUME");
                 downloadModel.setStatus("PAUSE");
                 downloadViewHolder.file_status.setText("PAUSE");

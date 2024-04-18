@@ -45,7 +45,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put("progress", downloadModel.getProgress());
         values.put("status", downloadModel.getStatus());
         values.put("file_size", downloadModel.getFile_size());
-        values.put("is_paused", downloadModel.getIs_paused());
+        values.put("is_paused", downloadModel.isPaused());
 
         System.out.println("Add download with id: " + downloadModel.getDownloadId());
         db.insert(TABLE_NAME, null, values);
@@ -67,7 +67,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 downloadModel.setProgress(cursor.getString(cursor.getColumnIndex("progress")));
                 downloadModel.setStatus(cursor.getString(cursor.getColumnIndex("status")));
                 downloadModel.setFile_size(cursor.getString(cursor.getColumnIndex("file_size")));
-                downloadModel.setIs_paused(cursor.getInt(cursor.getColumnIndex("is_paused")) != 0);
+                downloadModel.setPaused(cursor.getInt(cursor.getColumnIndex("is_paused")) != 0);
 
                 downloadList.add(downloadModel);
                 System.out.println("Get download with id: " + downloadModel.getDownloadId());

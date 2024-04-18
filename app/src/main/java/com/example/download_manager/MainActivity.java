@@ -252,7 +252,7 @@ public class MainActivity extends AppCompatActivity implements ItemClickListener
                 .title(filename)
                 .file_size("0")
                 .progress("0")
-                .is_paused(false)
+                .isPaused(false)
                 .downloadId(downloadId)
                 .file_path("")
                 .build();
